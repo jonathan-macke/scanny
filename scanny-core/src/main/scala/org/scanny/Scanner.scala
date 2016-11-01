@@ -29,11 +29,21 @@ import org.apache.http.protocol.HttpContext
 import org.apache.http.ProtocolException
 import org.apache.http.client.methods.HttpUriRequest
 import org.apache.http.impl.client.DefaultRedirectStrategy
+import spray.json._
+import DefaultJsonProtocol._ // if you don't supply your own Protocol
+import org.mongodb.scala.MongoClient
+import org.mongodb.scala.MongoCollection
+import org.mongodb.scala.MongoDatabase
+import org.mongodb.scala.bson.collection.immutable.Document
+import Helpers._
 
 object Scanner {
 
   val globalConfig = RequestConfig.custom.setCookieSpec(CookieSpecs.BEST_MATCH).build
-  val cookieStore = new BasicCookieStore();
+  val cookieStore = new BasicCookieStore()
+  val mongoClient: MongoClient = MongoClient("mongodb://localhost")
+  val database: MongoDatabase = mongoClient.getDatabase("scanny");    
+  val collection: MongoCollection[Document] = database.getCollection("products");    
 
   def scan(analyzer: Analyzer, proxy: Option[HttpHost] = None) = {
 
@@ -59,15 +69,10 @@ object Scanner {
 
       displayProductForAPage(promoLink, "promo")
 
-      if(!rayonLinks.isEmpty){
-        displayProductForAPage(rayonLinks.head._1, rayonLinks.head._2)
-      }
-      
-
-      /*
-    	for (rayon <- rayonLinks) {
+     	for (rayon <- rayonLinks) {
       	displayProductForAPage(rayon._1, rayon._2)
-    	}*/
+      	Thread.sleep(3000)
+    	}
 
     } finally {
       httpclient.close
@@ -76,6 +81,17 @@ object Scanner {
     def displayProductForAPage(rayonUrl: String, rayonName: String) = {
       val rayonHTML = processHttpRequest(httpclient, new HttpGet(analyzer.getHostName + rayonUrl))
       val products = analyzer.listProductsInAPage(Jsoup.parse(rayonHTML))
+   
+      import ProductProtocol._
+
+      for (prod <- products) {
+        
+         val doc: Document = Document("imgLink" -> prod.imgLink, "marque" -> prod.marque,
+                             "name" -> prod.name, "prix" -> prod.prix, "prixKilo" -> prod.prixKilo, "quantite"-> prod.quantite) 
+                             
+         collection.insertOne(doc).results(); 
+       }
+      
       val nbProducts = products.size
       println(products.mkString(s"List products for rayon $rayonName (nb product : $nbProducts)", "\n", "---------------"))
     }
@@ -135,8 +151,9 @@ object Scanner {
 
 
 class AllowPOSTRedirection extends DefaultRedirectStrategy {
-  
   override def isRedirectable(method : String) = method.equals("GET") || method.equals("POST")
-  
-  
+}
+
+object ProductProtocol extends DefaultJsonProtocol {
+  implicit val productFormat:RootJsonFormat[Product] = jsonFormat6(Product)
 }
