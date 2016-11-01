@@ -9,7 +9,7 @@ import org.jsoup.Jsoup
 
 class CarrefourAnalyzer extends Analyzer {
   
-  def getHomePage = HomePage("http://courses.carrefour.fr/drive/accueil.body.overlayers.storeoverlayer.drivepickingform/33", "POST", Map("t:formdata" -> "H4sIAAAAAAAAAFvzloEVAN3OqfcEAAAA"))
+  def getHomePage = HomePage("http://courses.carrefour.fr/drive/accueil.body.overlayers.storeoverlayer:drivepickingform/33", "POST", Map("t:formdata" -> "H4sIAAAAAAAAAFvzloEVAN3OqfcEAAAA"))
   
   def getHostName : String = "https://courses.carrefour.fr"
   
